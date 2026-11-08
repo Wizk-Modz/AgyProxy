@@ -1,13 +1,28 @@
 {
-  "name": "agyproxy",
+  "name": "@wizk-modz/agyproxy",
   "version": "0.1.0",
   "description": "Proxy Antigravity đa tài khoản hỗ trợ tuần tự và chuyển tài khoản khi hết hạn ngạch",
   "type": "module",
   "main": "src/server.js",
+  "bin": {
+    "agyproxy": "./src/cli.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node src/server.js",
     "cli": "node src/cli.js",
     "test": "node --test tests/**/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wizk-Modz/AgyProxy.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "keywords": [
     "antigravity",
@@ -16,6 +31,10 @@
     "claude",
     "openai"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "Wizk Bytes",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Wizk-Modz/AgyProxy/issues"
+  },
+  "homepage": "https://github.com/Wizk-Modz/AgyProxy#readme"
 }
