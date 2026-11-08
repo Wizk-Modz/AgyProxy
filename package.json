@@ -1,11 +1,11 @@
 {
   "name": "@wizk-modz/agyproxy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Proxy Antigravity đa tài khoản hỗ trợ tuần tự và chuyển tài khoản khi hết hạn ngạch",
   "type": "module",
   "main": "src/server.js",
   "bin": {
-    "agyproxy": "./src/cli.js"
+    "agyproxy": "src/cli.js"
   },
   "files": [
     "src",
