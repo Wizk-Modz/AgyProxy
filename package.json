@@ -1,0 +1,21 @@
+{
+  "name": "agyproxy",
+  "version": "0.1.0",
+  "description": "Proxy Antigravity đa tài khoản hỗ trợ tuần tự và chuyển tài khoản khi hết hạn ngạch",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "cli": "node src/cli.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "antigravity",
+    "proxy",
+    "gemini",
+    "claude",
+    "openai"
+  ],
+  "author": "",
+  "license": "MIT"
+}
