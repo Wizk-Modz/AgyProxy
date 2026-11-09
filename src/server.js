@@ -1,4 +1,7 @@
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { resolve, extname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CONFIG } from "./config/index.js";
 import {
   ANTIGRAVITY_BASE_URL,
@@ -11,6 +14,7 @@ import {
   loadAccounts,
   ensureValidToken,
   upsertAccount,
+  updateAccount,
   removeAccount,
   buildOAuthUrl,
   exchangeOAuthCode,
@@ -19,12 +23,51 @@ import {
   executeWithSequentialFallback,
   getEarliestResetTime,
 } from "./services/accountDispatcher.js";
-import { getAccountLockInfo } from "./services/quotaTracker.js";
+import {
+  getAccountLockInfo,
+  clearAccountLock,
+} from "./services/quotaTracker.js";
 import { buildAntigravityEnvelope } from "./translator/requestTranslator.js";
 import {
   antigravityToOpenAIResponse,
   translateAntigravitySSEChunk,
 } from "./translator/responseTranslator.js";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const UI_DIR = resolve(__dirname, "ui");
+
+const MIME_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+};
+
+// Phục vụ các tài nguyên tĩnh của giao diện Web UI
+async function serveStaticFile(res, relativePath) {
+  const safeRelative = relativePath.replace(/^\/+/, "");
+  const targetPath = resolve(UI_DIR, safeRelative);
+  if (!targetPath.startsWith(UI_DIR)) {
+    return false;
+  }
+  try {
+    const content = await readFile(targetPath);
+    const ext = extname(targetPath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "no-cache",
+    });
+    res.end(content);
+    return true;
+  } catch (err) {
+    if (err.code === "ENOENT") return false;
+    throw err;
+  }
+}
 
 // Đọc toàn bộ body dạng chuỗi JSON từ HTTP request
 export async function readJsonBody(req) {
@@ -186,7 +229,7 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
   return createServer(async (req, res) => {
     // Thêm CORS headers cho các ứng dụng client
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key");
 
     if (req.method === "OPTIONS") {
@@ -199,16 +242,53 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
 
     try {
       // 1. Kiểm tra trạng thái máy chủ
-      if (req.method === "GET" && (path === "/" || path === "/health")) {
+      if (req.method === "GET" && path === "/health") {
         const accounts = await getActiveAccounts(accountsFilePath);
         return sendJson(res, 200, {
           status: "ok",
-          version: "0.1.0",
+          version: "0.2.0",
           activeAccounts: accounts.length,
         });
       }
 
-      // 2. Danh sách Model theo chuẩn OpenAI
+      // Trả về thông tin chi tiết trạng thái hệ thống cho Web UI
+      if (req.method === "GET" && path === "/api/status") {
+        const accounts = await loadAccounts(accountsFilePath);
+        const active = accounts.filter((a) => a.isActive !== false);
+        const earliestReset = getEarliestResetTime(accounts);
+        return sendJson(res, 200, {
+          status: "ok",
+          version: "0.2.0",
+          totalAccounts: accounts.length,
+          activeAccounts: active.length,
+          earliestReset: earliestReset ? new Date(earliestReset).toISOString() : null,
+        });
+      }
+
+      // 2. Phục vụ giao diện Web UI
+      if (req.method === "GET") {
+        if (path === "/" || path === "/ui" || path === "/ui/" || path === "/index.html") {
+          const isJsonRequested = req.headers.accept?.includes("application/json") && !req.headers.accept?.includes("text/html");
+          if (path === "/" && isJsonRequested) {
+            const accounts = await getActiveAccounts(accountsFilePath);
+            return sendJson(res, 200, {
+              status: "ok",
+              version: "0.2.0",
+              activeAccounts: accounts.length,
+            });
+          }
+          const served = await serveStaticFile(res, "index.html");
+          if (served) return;
+        }
+
+        if (path.startsWith("/ui/")) {
+          const relativePath = path.slice("/ui/".length);
+          const served = await serveStaticFile(res, relativePath);
+          if (served) return;
+        }
+      }
+
+      // 3. Danh sách Model theo chuẩn OpenAI
       if (req.method === "GET" && path === "/v1/models") {
         return sendJson(res, 200, {
           object: "list",
@@ -221,13 +301,13 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         });
       }
 
-      // 3. API Chat Completions chuẩn OpenAI
+      // 4. API Chat Completions chuẩn OpenAI
       if (req.method === "POST" && path === "/v1/chat/completions") {
         const body = await readJsonBody(req);
         return await handleChatCompletion(req, res, body, accountsFilePath);
       }
 
-      // 4. API Quản lý danh sách tài khoản
+      // 5. API Quản lý danh sách tài khoản
       if (req.method === "GET" && path === "/api/accounts") {
         const accounts = await loadAccounts(accountsFilePath);
         const list = accounts.map((acc) => {
@@ -247,7 +327,25 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         return sendJson(res, 200, { accounts: list });
       }
 
-      // 5. API Thêm hoặc cập nhật tài khoản
+      // 6. Mở khóa tài khoản bị dính hạn ngạch thủ công
+      if (req.method === "POST" && path.startsWith("/api/accounts/") && path.endsWith("/unlock")) {
+        const id = path.slice("/api/accounts/".length, -"/unlock".length);
+        clearAccountLock(id);
+        return sendJson(res, 200, { success: true, message: "Đã mở khóa tài khoản thành công" });
+      }
+
+      // 7. Cập nhật cấu hình hoặc thứ tự ưu tiên của tài khoản
+      if (req.method === "PATCH" && path.startsWith("/api/accounts/")) {
+        const id = path.slice("/api/accounts/".length);
+        const body = await readJsonBody(req);
+        const updated = await updateAccount(id, body, accountsFilePath);
+        if (!updated) {
+          return sendJson(res, 404, { error: "Không tìm thấy tài khoản" });
+        }
+        return sendJson(res, 200, { account: updated });
+      }
+
+      // 8. API Thêm hoặc cập nhật tài khoản
       if (req.method === "POST" && path === "/api/accounts") {
         const body = await readJsonBody(req);
         if (!body.refreshToken) {
@@ -264,14 +362,14 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         });
       }
 
-      // 6. API Xóa tài khoản
+      // 9. API Xóa tài khoản
       if (req.method === "DELETE" && path.startsWith("/api/accounts/")) {
         const id = path.slice("/api/accounts/".length);
         const ok = await removeAccount(id, accountsFilePath);
         return sendJson(res, ok ? 200 : 404, { success: ok });
       }
 
-      // 7. API Tạo URL Google OAuth đăng nhập
+      // 10. API Tạo URL Google OAuth đăng nhập
       if (req.method === "GET" && path === "/api/oauth/url") {
         const redirectUri = parsedUrl.searchParams.get("redirect_uri") || `http://${req.headers.host || "localhost:8080"}/oauth/callback`;
         const state = parsedUrl.searchParams.get("state") || "";
@@ -279,7 +377,18 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         return sendJson(res, 200, { url });
       }
 
-      // 8. Endpoint callback nhận authorization code từ Google OAuth
+      // 11. Đổi mã Google OAuth Authorization Code sang token và lưu tài khoản
+      if (req.method === "POST" && path === "/api/oauth/exchange") {
+        const body = await readJsonBody(req);
+        if (!body.code) {
+          return sendJson(res, 400, { error: "Yêu cầu cung cấp authorization code" });
+        }
+        const redirectUri = body.redirectUri || `http://${req.headers.host || "localhost:8080"}/oauth/callback`;
+        const account = await exchangeOAuthCode(body.code, redirectUri, accountsFilePath);
+        return sendJson(res, 200, { success: true, account });
+      }
+
+      // 12. Endpoint callback nhận authorization code từ Google OAuth
       if (req.method === "GET" && path === "/oauth/callback") {
         const code = parsedUrl.searchParams.get("code");
         if (!code) {
@@ -288,7 +397,28 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         const redirectUri = `http://${req.headers.host || "localhost:8080"}/oauth/callback`;
         const account = await exchangeOAuthCode(code, redirectUri, accountsFilePath);
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(`<h2>Thành công!</h2><p>Đã liên kết tài khoản Antigravity (${account.email || account.name}) với độ ưu tiên #${account.priority}. Bạn có thể đóng tab này.</p>`);
+        res.end(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Liên kết thành công</title>
+<style>body{font-family:system-ui,sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}</style>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: "AGY_OAUTH_SUCCESS", email: "${account.email || account.name}" }, "*");
+    setTimeout(() => window.close(), 1500);
+  } else {
+    setTimeout(() => { window.location.href = "/"; }, 2000);
+  }
+</script>
+</head>
+<body>
+  <div>
+    <h2>✅ Liên kết tài khoản thành công!</h2>
+    <p>Đã liên kết tài khoản Antigravity (<strong>${account.email || account.name}</strong>) với độ ưu tiên #${account.priority}.</p>
+    <p style="color:#94a3b8">Cửa sổ này sẽ tự động đóng sau giây lát...</p>
+    <p><a href="/" style="color:#38bdf8">Quay lại Web UI</a></p>
+  </div>
+</body>
+</html>`);
         return;
       }
 

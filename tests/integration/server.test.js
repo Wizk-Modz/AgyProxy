@@ -100,3 +100,87 @@ test("server - GET /api/oauth/url sinh URL đăng nhập Google OAuth", async ()
   assert.ok(json.url.startsWith("https://accounts.google.com/o/oauth2/v2/auth"));
   assert.ok(json.url.includes("client_id="));
 });
+
+test("server - GET / và /ui phục vụ giao diện Web UI HTML", async () => {
+  // Trình duyệt gửi Accept: text/html
+  const resHtml = await fetch(`${serverUrl}/`, {
+    headers: { Accept: "text/html,application/xhtml+xml" },
+  });
+  assert.equal(resHtml.status, 200);
+  assert.ok(resHtml.headers.get("content-type")?.includes("text/html"));
+  const html = await resHtml.text();
+  assert.ok(html.includes("AgyProxy"));
+  assert.ok(html.includes("tab-playground"));
+
+  // Truy cập /ui
+  const resUi = await fetch(`${serverUrl}/ui`);
+  assert.equal(resUi.status, 200);
+  assert.ok(resUi.headers.get("content-type")?.includes("text/html"));
+});
+
+test("server - GET /ui/style.css và /ui/app.js phục vụ đúng Content-Type", async () => {
+  const cssRes = await fetch(`${serverUrl}/ui/style.css`);
+  assert.equal(cssRes.status, 200);
+  assert.ok(cssRes.headers.get("content-type")?.includes("text/css"));
+  const css = await cssRes.text();
+  assert.ok(css.includes("--bg-main"));
+
+  const jsRes = await fetch(`${serverUrl}/ui/app.js`);
+  assert.equal(jsRes.status, 200);
+  assert.ok(jsRes.headers.get("content-type")?.includes("application/javascript"));
+  const js = await jsRes.text();
+  assert.ok(js.includes("fetchAccounts"));
+});
+
+test("server - GET /ui/../package.json chặn tấn công path traversal", async () => {
+  const res = await fetch(`${serverUrl}/ui/../package.json`);
+  // Không được trả về 200 nội dung package.json ngoài UI_DIR
+  assert.notEqual(res.status, 200);
+});
+
+test("server - GET /api/status trả về chi tiết trạng thái hệ thống", async () => {
+  const res = await fetch(`${serverUrl}/api/status`);
+  assert.equal(res.status, 200);
+  const json = await res.json();
+  assert.equal(json.status, "ok");
+  assert.equal(typeof json.totalAccounts, "number");
+  assert.equal(typeof json.activeAccounts, "number");
+});
+
+test("server - PATCH /api/accounts/:id và POST /api/accounts/:id/unlock", async () => {
+  // 1. Thêm tài khoản
+  const addRes = await fetch(`${serverUrl}/api/accounts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Tài khoản Patch Test",
+      email: "patch@example.com",
+      refreshToken: "refresh_patch_token",
+      priority: 5,
+    }),
+  });
+  const addJson = await addRes.json();
+  const accId = addJson.account.id;
+
+  // 2. PATCH đổi priority và tắt isActive
+  const patchRes = await fetch(`${serverUrl}/api/accounts/${accId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ priority: 1, isActive: false }),
+  });
+  assert.equal(patchRes.status, 200);
+  const patchJson = await patchRes.json();
+  assert.equal(patchJson.account.priority, 1);
+  assert.equal(patchJson.account.isActive, false);
+
+  // 3. Mở khóa tài khoản thủ công qua unlock endpoint
+  const unlockRes = await fetch(`${serverUrl}/api/accounts/${accId}/unlock`, {
+    method: "POST",
+  });
+  assert.equal(unlockRes.status, 200);
+  const unlockJson = await unlockRes.json();
+  assert.equal(unlockJson.success, true);
+
+  // Dọn dẹp
+  await fetch(`${serverUrl}/api/accounts/${accId}`, { method: "DELETE" });
+});

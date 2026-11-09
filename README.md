@@ -16,13 +16,18 @@ Proxy Google Antigravity (Cloud Code Assist) đa tài khoản với cơ chế đ
   - Làm sạch prompt, loại bỏ tiền tố thương hiệu đối thủ tránh bị phía Google gắn cờ 429 giả lập.
   - Tách nội dung suy luận (`thought: true`) thành `reasoning_content` chuẩn OpenAI.
   - Hỗ trợ Tool Calling / Function Calling với chữ ký suy luận Gemini 3+.
+- **Giao diện Web UI trực quan**:
+  - Tích hợp sẵn dashboard giám sát tài khoản, thời gian đếm ngược mở khóa khi dính 429.
+  - Hỗ trợ đổi thứ tự ưu tiên (▲ ▼), bật/tắt, mở khóa thủ công và đăng nhập Google OAuth 1-click.
+  - Chat Playground kiểm tra trực tiếp phản hồi, suy luận (thought/reasoning) và streaming SSE.
+  - Không cần build step, 0 external dependencies, tương thích cả desktop và thiết bị di động (Termux browser).
 - **Thuần Node.js native**: 0 external dependencies, khởi động tức thì, hoạt động mượt mà trên Linux và Termux (Android).
 
 ---
 
 ## Cài Đặt & Sử Dụng
 
-### 1. Khởi động máy chủ Proxy
+### 1. Khởi động máy chủ Proxy & Truy cập Web UI
 
 ```bash
 # Cổng mặc định là 8080
@@ -31,6 +36,15 @@ npm start
 # Hoặc tùy chỉnh cổng
 PORT=9000 npm start
 ```
+
+Sau khi khởi động, mở trình duyệt truy cập:
+👉 **`http://localhost:8080/`** (hoặc `http://localhost:8080/ui`)
+
+Giao diện Web UI gồm 4 tab:
+1. **Tổng quan (Dashboard)**: Thống kê số lượng tài khoản, tài khoản đang được chọn phục vụ liên tục (#1).
+2. **Quản lý tài khoản (Accounts)**: Đăng nhập Google OAuth, thêm Refresh Token thủ công, đổi độ ưu tiên, mở khóa thủ công.
+3. **Playground**: Trình gửi câu hỏi kiểm tra trực tiếp model (Gemini 2.5 Pro, Flash, Claude 3.7 Sonnet, v.v.), xem reasoning/suy luận.
+4. **Hướng dẫn kết nối**: Sao chép 1-click mẫu cấu hình cho Cline, Cursor, OpenAI Python/Node.js SDK, curl.
 
 ### 2. Quản lý tài khoản bằng CLI
 

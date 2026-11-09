@@ -92,6 +92,12 @@ export function getAccountLockInfo(accountId) {
   return lock;
 }
 
+// Xóa trạng thái khóa và số lần strike của một tài khoản cụ thể
+export function clearAccountLock(accountId) {
+  accountLocks.delete(accountId);
+  strikeCounts.delete(accountId);
+}
+
 // Xóa toàn bộ trạng thái bộ nhớ đệm phục vụ kiểm thử
 export function resetQuotaTrackerState() {
   accountLocks.clear();

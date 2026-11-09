@@ -72,6 +72,27 @@ export async function upsertAccount(accountData, filePath = CONFIG.accountsFileP
   return account;
 }
 
+// Cập nhật thông tin cấu hình của một tài khoản hiện có
+export async function updateAccount(id, updates, filePath = CONFIG.accountsFilePath) {
+  const accounts = await loadAccounts(filePath);
+  const index = accounts.findIndex((a) => a.id === id);
+  if (index === -1) return null;
+  const existing = accounts[index];
+  const updated = {
+    ...existing,
+    ...updates,
+    id: existing.id,
+    refreshToken: updates.refreshToken || existing.refreshToken,
+    priority: updates.priority !== undefined ? Number(updates.priority) : existing.priority,
+    isActive: updates.isActive !== undefined ? Boolean(updates.isActive) : existing.isActive,
+    name: updates.name !== undefined ? String(updates.name) : existing.name,
+    updatedAt: Date.now(),
+  };
+  accounts[index] = updated;
+  await saveAccounts(accounts, filePath);
+  return updated;
+}
+
 // Xóa tài khoản khỏi danh sách lưu trữ
 export async function removeAccount(id, filePath = CONFIG.accountsFilePath) {
   const accounts = await loadAccounts(filePath);

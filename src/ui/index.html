@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgyProxy - Antigravity Multi-Account Dashboard</title>
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+
+  <!-- Thanh điều hướng chính -->
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>AgyProxy</h1>
+        </div>
+        <span class="tag">v0.2.0</span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="dashboard">📊 Tổng quan</button>
+        <button class="tab-btn" data-tab="accounts">👥 Tài khoản</button>
+        <button class="tab-btn" data-tab="playground">💬 Playground</button>
+        <button class="tab-btn" data-tab="setup">🔌 Kết nối</button>
+      </nav>
+
+      <div class="header-status">
+        <span class="status-dot"></span>
+        <span id="header-status-text">Đang tải...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- TAB 1: TỔNG QUAN (DASHBOARD) -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="grid-cols-4">
+        <div class="metric-card">
+          <div class="metric-icon">👥</div>
+          <div class="metric-info">
+            <h3>Tổng tài khoản</h3>
+            <div id="metric-total" class="value">0</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon" style="color:var(--success);">✅</div>
+          <div class="metric-info">
+            <h3>Sẵn sàng phục vụ</h3>
+            <div id="metric-available" class="value">0</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon" style="color:var(--danger);">⏳</div>
+          <div class="metric-info">
+            <h3>Bị khóa hạn ngạch</h3>
+            <div id="metric-locked" class="value">0</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon" style="color:var(--primary);">🚀</div>
+          <div class="metric-info">
+            <h3>Định tuyến</h3>
+            <div class="value" style="font-size:1.1rem;margin-top:4px;">Tuần tự (Fill-First)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card tài khoản đang được chọn phục vụ -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🎯 Tài khoản ưu tiên phục vụ hiện tại</div>
+          <button class="btn btn-secondary btn-sm" onclick="switchTab('accounts')">Quản lý thứ tự</button>
+        </div>
+        <div id="active-account-card">
+          <div style="color:var(--text-muted);">Đang kiểm tra tài khoản...</div>
+        </div>
+      </div>
+
+      <!-- Banner thông tin nguyên lý định tuyến tuần tự -->
+      <div class="banner">
+        <span class="banner-icon">💡</span>
+        <div>
+          <strong>Cơ chế định tuyến tuần tự (Fill-First):</strong> Proxy luôn sử dụng tài khoản có mức ưu tiên cao nhất (#1) cho mọi yêu cầu gọi API. Chỉ khi tài khoản này bị lỗi hạn ngạch (429/409/RESOURCE_EXHAUSTED), hệ thống mới tự động chuyển sang tài khoản kế tiếp (#2). Khi tài khoản trước hết thời gian khóa, hệ thống sẽ tự động phục hồi sử dụng lại.
+        </div>
+      </div>
+
+      <!-- Card thông tin kết nối nhanh -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🌐 Điểm cuối máy chủ (Endpoint)</div>
+          <button class="btn btn-primary btn-sm" onclick="switchTab('setup')">Xem hướng dẫn chi tiết</button>
+        </div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
+          Tương thích hoàn toàn chuẩn OpenAI Chat Completions. Dùng cho Cline, Cursor, Roo Code, LibreChat, Open WebUI:
+        </p>
+        <div class="code-block">
+          <span class="setup-base-url">http://localhost:8080/v1</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: QUẢN LÝ TÀI KHOẢN (ACCOUNTS) -->
+    <div id="tab-accounts" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Danh sách tài khoản Antigravity</div>
+          <div style="display:flex;gap:8px;">
+            <button id="btn-open-add" class="btn btn-primary">➕ Thêm tài khoản</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Ưu tiên</th>
+                <th>Tài khoản</th>
+                <th>Project ID</th>
+                <th>Trạng thái hạn ngạch</th>
+                <th>Kích hoạt</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="accounts-empty" class="empty-state" style="display:none;">
+          <div class="empty-icon">📂</div>
+          <p>Chưa có tài khoản Antigravity nào được lưu trữ.</p>
+          <button class="btn btn-primary" style="margin-top:1rem;" onclick="openAddModal()">Thêm tài khoản đầu tiên</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: PLAYGROUND (CHAT COMPLETIONS) -->
+    <div id="tab-playground" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">💬 Trình thử nghiệm Chat Completions</div>
+          <span style="font-size:0.8rem;color:var(--text-muted);">Gửi trực tiếp qua proxy tới Google Cloud Code Assist</span>
+        </div>
+
+        <div class="playground-grid">
+          <!-- Cột bên trái: Thiết lập yêu cầu -->
+          <div>
+            <div class="form-group">
+              <label class="form-label" for="playground-model">Mô hình (Model)</label>
+              <select id="playground-model" class="form-control"></select>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-bottom:1rem;">
+              <div style="flex:1;">
+                <label class="form-label" for="playground-temp">Temperature: <span id="temp-val">0.7</span></label>
+                <input id="playground-temp" type="range" min="0" max="2" step="0.1" value="0.7" class="form-control" oninput="document.getElementById('temp-val').textContent=this.value">
+              </div>
+              <div style="display:flex;align-items:center;padding-top:1.5rem;">
+                <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+                  <input id="playground-stream" type="checkbox" checked>
+                  <span>Streaming SSE</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="playground-system">System Message (Tuỳ chọn)</label>
+              <textarea id="playground-system" class="form-control" rows="2" placeholder="Bạn là trợ lý AI hữu ích..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="playground-user">Nội dung câu hỏi (User Prompt)</label>
+              <textarea id="playground-user" class="form-control" rows="4" placeholder="Nhập câu hỏi để kiểm tra hoạt động của proxy..."></textarea>
+            </div>
+
+            <button id="playground-submit-btn" class="btn btn-primary" style="width:100%;padding:10px;">
+              🚀 Gửi yêu cầu
+            </button>
+          </div>
+
+          <!-- Cột bên phải: Phản hồi -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <label class="form-label" style="margin-bottom:0;">Kết quả trả về</label>
+              <span id="playground-status-info" style="font-size:0.75rem;color:var(--text-muted);font-family:var(--font-mono);"></span>
+            </div>
+
+            <!-- Khung suy luận nếu có -->
+            <div id="playground-reasoning" class="reasoning-box" style="display:none;">
+              <div class="reasoning-title">🧠 Quá trình suy luận (Reasoning / Thought)</div>
+              <div id="playground-reasoning-content"></div>
+            </div>
+
+            <div id="playground-response" class="response-box">Chưa có kết quả. Nhập câu hỏi và nhấn 'Gửi yêu cầu'.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: HƯỚNG DẪN KẾT NỐI (SETUP) -->
+    <div id="tab-setup" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔌 Hướng dẫn tích hợp Client</div>
+        </div>
+
+        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1.25rem;">
+          AgyProxy tương thích chuẩn OpenAI API. Bạn có thể sử dụng bất kỳ client hoặc thư viện nào hỗ trợ endpoint OpenAI tùy chỉnh.
+        </p>
+
+        <!-- Cline & Roo Code -->
+        <h4 style="margin-bottom:0.5rem;">1. Cấu hình Cline / Roo Code / Claude Dev</h4>
+        <div class="code-block" id="code-cline">
+Provider: OpenAI Compatible
+Base URL: <span class="setup-base-url">http://localhost:8080/v1</span>
+API Key: any-string (ví dụ: sk-antigravity)
+Model ID: gemini-2.5-pro (hoặc claude-3-7-sonnet)</div>
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('code-cline')">📋 Sao chép</button>
+
+        <!-- Cursor -->
+        <h4 style="margin:1.25rem 0 0.5rem;">2. Cấu hình Cursor AI</h4>
+        <div class="code-block" id="code-cursor">
+Vào Cursor Settings -> Models -> OpenAI API Key:
+Bật "Override OpenAI Base URL"
+URL: <span class="setup-base-url">http://localhost:8080/v1</span>
+API Key: sk-antigravity</div>
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('code-cursor')">📋 Sao chép</button>
+
+        <!-- Python OpenAI -->
+        <h4 style="margin:1.25rem 0 0.5rem;">3. Python SDK (openai)</h4>
+        <div class="code-block" id="code-python">
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="<span class="setup-base-url">http://localhost:8080/v1</span>",
+    api_key="sk-antigravity"
+)
+
+res = client.chat.completions.create(
+    model="gemini-2.5-pro",
+    messages=[{"role": "user", "content": "Xin chào!"}]
+)
+print(res.choices[0].message.content)</div>
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('code-python')">📋 Sao chép</button>
+
+        <!-- Curl -->
+        <h4 style="margin:1.25rem 0 0.5rem;">4. Kiểm tra nhanh bằng curl</h4>
+        <div class="code-block" id="code-curl">
+curl <span class="setup-base-url">http://localhost:8080/v1</span>/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-antigravity" \
+  -d '{
+    "model": "gemini-2.5-pro",
+    "messages": [{"role": "user", "content": "Xin chào"}]
+  }'</div>
+        <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('code-curl')">📋 Sao chép</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: THÊM TÀI KHOẢN -->
+  <div id="add-account-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem;font-weight:700;">Thêm tài khoản Google Antigravity</h3>
+        <button id="btn-close-modal" class="modal-close">&times;</button>
+      </div>
+
+      <div style="display:flex;gap:6px;background:var(--bg-input);padding:3px;border-radius:8px;margin-bottom:1.25rem;">
+        <button class="tab-btn modal-subtab-btn active" data-subtab="oauth" style="flex:1;">Google OAuth</button>
+        <button class="tab-btn modal-subtab-btn" data-subtab="manual" style="flex:1;">Nhập Refresh Token</button>
+      </div>
+
+      <!-- Tab con 1: OAuth -->
+      <div id="subtab-oauth">
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">
+          Đăng nhập vào tài khoản Google đã kích hoạt Cloud Code Assist (Antigravity) để tự động lấy token và cấu hình:
+        </p>
+        <button id="btn-oauth-start" class="btn btn-primary" style="width:100%;margin-bottom:1.25rem;padding:10px;">
+          🔑 Mở liên kết đăng nhập Google
+        </button>
+
+        <div style="border-top:1px solid var(--border);padding-top:1rem;">
+          <label class="form-label" for="oauth-manual-code">Hoặc dán Authorization Code thủ công:</label>
+          <input id="oauth-manual-code" type="text" class="form-control" placeholder="4/0AWgav..." style="margin-bottom:0.75rem;">
+          <button id="btn-oauth-submit-code" class="btn btn-secondary" style="width:100%;">
+            Xác nhận mã Code
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab con 2: Nhập Refresh Token thủ công -->
+      <div id="subtab-manual" style="display:none;">
+        <form id="form-manual-token">
+          <div class="form-group">
+            <label class="form-label" for="manual-token">Refresh Token *</label>
+            <textarea id="manual-token" class="form-control" rows="3" placeholder="1//04..." required></textarea>
+            <div class="form-help">Token lấy từ phiên làm việc Google OAuth hoặc các công cụ tương thích.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="manual-name">Tên hiển thị gợi nhớ (Tuỳ chọn)</label>
+            <input id="manual-name" type="text" class="form-control" placeholder="Acc Cá Nhân 1">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="manual-priority">Độ ưu tiên (Số nhỏ hơn được dùng trước)</label>
+            <input id="manual-priority" type="number" class="form-control" placeholder="1, 2, 3...">
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;">
+            💾 Lưu tài khoản
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <footer>
+    AgyProxy &copy; 2026 - Sequential Fill-First Proxy cho Antigravity Google Cloud Code Assist
+  </footer>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>
