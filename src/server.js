@@ -435,6 +435,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const app = createProxyApp();
   app.listen(CONFIG.port, CONFIG.host, () => {
     console.log(`[AgyProxy] Server đang chạy tại http://${CONFIG.host}:${CONFIG.port}`);
+    console.log(`[AgyProxy] Giao diện Web UI: http://${CONFIG.host}:${CONFIG.port}/ (hoặc /ui)`);
     console.log(`[AgyProxy] Endpoint OpenAI: http://${CONFIG.host}:${CONFIG.port}/v1/chat/completions`);
     console.log(`[AgyProxy] Endpoint Models: http://${CONFIG.host}:${CONFIG.port}/v1/models`);
   });

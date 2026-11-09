@@ -38,14 +38,14 @@ function printHelp() {
 AgyProxy CLI - Quản lý Proxy Antigravity đa tài khoản
 
 Sử dụng:
-  node src/cli.js list                            Liệt kê danh sách tài khoản và trạng thái hạn ngạch
-  node src/cli.js add --token <refresh_token>     Thêm tài khoản mới qua refresh token
-                      [--name <tên>]
-                      [--priority <số>]
-                      [--project <projectId>]
-  node src/cli.js remove <id>                     Xóa tài khoản theo mã ID
-  node src/cli.js oauth [--port <cổng>]           Tạo URL đăng nhập Google OAuth
-  node src/cli.js start [--port <cổng>]           Khởi động máy chủ proxy
+  agyproxy list                            Liệt kê danh sách tài khoản và trạng thái hạn ngạch
+  agyproxy add --token <refresh_token>     Thêm tài khoản mới qua refresh token
+               [--name <tên>]
+               [--priority <số>]
+               [--project <projectId>]
+  agyproxy remove <id>                     Xóa tài khoản theo mã ID
+  agyproxy oauth [--port <cổng>]           Tạo URL đăng nhập Google OAuth
+  agyproxy start [--port <cổng>]           Khởi động máy chủ proxy và Web UI
   `);
 }
 
@@ -128,6 +128,7 @@ async function main() {
     const app = createProxyApp();
     app.listen(port, CONFIG.host, () => {
       console.log(`[AgyProxy] Server đang chạy tại http://${CONFIG.host}:${port}`);
+      console.log(`[AgyProxy] Giao diện Web UI: http://${CONFIG.host}:${port}/ (hoặc /ui)`);
       console.log(`[AgyProxy] Endpoint OpenAI: http://${CONFIG.host}:${port}/v1/chat/completions`);
       console.log(`[AgyProxy] Endpoint Models: http://${CONFIG.host}:${port}/v1/models`);
     });
