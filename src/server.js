@@ -246,7 +246,7 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         const accounts = await getActiveAccounts(accountsFilePath);
         return sendJson(res, 200, {
           status: "ok",
-          version: "0.2.0",
+          version: "0.2.1",
           activeAccounts: accounts.length,
         });
       }
@@ -258,7 +258,7 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
         const earliestReset = getEarliestResetTime(accounts);
         return sendJson(res, 200, {
           status: "ok",
-          version: "0.2.0",
+          version: "0.2.1",
           totalAccounts: accounts.length,
           activeAccounts: active.length,
           earliestReset: earliestReset ? new Date(earliestReset).toISOString() : null,
@@ -273,7 +273,7 @@ export function createProxyApp(accountsFilePath = CONFIG.accountsFilePath) {
             const accounts = await getActiveAccounts(accountsFilePath);
             return sendJson(res, 200, {
               status: "ok",
-              version: "0.2.0",
+              version: "0.2.1",
               activeAccounts: accounts.length,
             });
           }
